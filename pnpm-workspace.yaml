@@ -1,0 +1,5 @@
+allowBuilds:
+  # Native helpers `@vscode/vsce` uses for `vsce login`/`publish` (extension
+  # signing, OS keychain credential storage). Not needed for `vsce package`.
+  "@vscode/vsce-sign": false
+  keytar: false
