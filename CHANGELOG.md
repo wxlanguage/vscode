@@ -6,6 +6,23 @@ and compiler itself, see the [wx changelog](https://github.com/wxlanguage/wx/blo
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.2] - 2026-07-20
+
+### Fixed
+
+- When running the extension in a development host (`F5`), the locally
+  built `target/debug/wx` binary is now found and preferred over a
+  configured `wx.path` setting, instead of the other way around. The
+  relative path to that dev binary was also corrected — it was off by
+  one directory level after the extension was extracted into its own
+  [wxlanguage/vscode](https://github.com/wxlanguage/vscode) repo.
+
+### Added
+
+- The output channel now logs the resolved `wx` command and arguments
+  when the language server starts, to make it easier to confirm which
+  binary is actually running.
+
 ## [0.1.1] - 2026-07-11
 
 ### Changed

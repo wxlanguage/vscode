@@ -74,6 +74,18 @@ function findWxOnPath(): string | undefined {
 const resolveServerCommand = (
 	context: ExtensionContext,
 ): string | undefined => {
+	if (context.extensionMode === ExtensionMode.Development) {
+		const devBinary = path.resolve(
+			context.extensionPath,
+			"..",
+			"..",
+			"target",
+			"debug",
+			process.platform === "win32" ? "wx.exe" : "wx",
+		);
+		if (fileExists(devBinary)) return devBinary;
+	}
+
 	const configured = workspace.getConfiguration("wx").get<string>("path");
 	if (configured) {
 		const resolved = path.isAbsolute(configured)
@@ -83,16 +95,6 @@ const resolveServerCommand = (
 		return resolved && fileExists(resolved) ? resolved : undefined;
 	}
 
-	if (context.extensionMode === ExtensionMode.Development) {
-		const devBinary = path.resolve(
-			context.extensionPath,
-			"..",
-			"target",
-			"debug",
-			process.platform === "win32" ? "wx.exe" : "wx",
-		);
-		if (fileExists(devBinary)) return devBinary;
-	}
 
 	// No bundled binary (unlike the old per-platform .vsix builds) — same
 	// model as `deno.path`: resolve `wx` from the user's PATH.
@@ -137,8 +139,8 @@ async function startServer(context: ExtensionContext) {
 		const message = configured
 			? `Could not find the 'wx' executable at the configured "wx.path": ${configured}`
 			: "Could not find the 'wx' executable on your PATH. Install it " +
-				"with `npm install -g @wx-lang/cli` (or `cargo install --path " +
-				'crates/wx-cli`), or set the "wx.path" setting to point to it directly.';
+			"with `npm install -g @wx-lang/cli` (or `cargo install --path " +
+			'crates/wx-cli`), or set the "wx.path" setting to point to it directly.';
 		const action = await window.showErrorMessage(message, "Open Settings");
 		if (action === "Open Settings") {
 			commands.executeCommand(
@@ -201,6 +203,10 @@ async function startServer(context: ExtensionContext) {
 		"WX Language Server",
 		serverOptions,
 		clientOptions,
+	);
+
+	client.outputChannel.info(
+		`starting: ${serverCommand} ${serverOptions.args?.join(" ") ?? ""}`,
 	);
 
 	try {
