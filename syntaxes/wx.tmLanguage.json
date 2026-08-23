@@ -29,7 +29,7 @@
 				},
 				{
 					"name": "keyword.control.wx",
-					"match": "\\b(if|else|loop|break|continue|return|for|unreachable)\\b"
+					"match": "\\b(if|else|loop|break|continue|return|for|unreachable|match)\\b"
 				},
 				{
 					"name": "keyword.other.wx",
