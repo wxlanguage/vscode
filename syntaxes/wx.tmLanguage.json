@@ -33,7 +33,7 @@
 				},
 				{
 					"name": "keyword.other.wx",
-					"match": "\\b(import|export|as|self|Self)\\b"
+					"match": "\\b(import|export|as|self|Self|crate|super)\\b"
 				},
 				{
 					"name": "constant.language.wx",
