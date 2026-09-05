@@ -1,0 +1,9 @@
+# Standalone repo (published on its own, not only as a submodule), so the
+# walk stops here rather than picking up the parent wx checkout's config.
+root = true
+
+[*]
+end_of_line = lf
+# The root repo's own .editorconfig omits this, which is how extension.ts
+# got silently reindented to spaces by a format-on-save.
+indent_style = tab

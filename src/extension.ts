@@ -8,7 +8,6 @@ import {
 	commands,
 	window,
 	Uri,
-	FileSystemWatcher,
 	EventEmitter,
 	TextDocument,
 } from "vscode";
@@ -16,14 +15,69 @@ import {
 	LanguageClient,
 	LanguageClientOptions,
 	ServerOptions,
+	State,
 } from "vscode-languageclient/node";
+import * as protocol from "./protocol";
 import {
 	AnsiDecorationProvider,
 	DIAGNOSTICS_VIEW_SCHEME,
 	stripAnsi,
 } from "./ansiDecorations";
 
-let client: LanguageClient | null = null;
+// Owns the language client, chaining every lifecycle transition onto the
+// previous one so a stop can never overlap a start — the race that had VS
+// Code `kill -9` a server it never sent a `shutdown` request to.
+class ServerSession {
+	#client: LanguageClient | null = null;
+	#lastTransition: Promise<unknown> = Promise.resolve();
+	readonly #context: ExtensionContext;
+
+	constructor(context: ExtensionContext) {
+		this.#context = context;
+	}
+
+	restart(reason: string): Promise<void> {
+		return this.#enqueue(async () => {
+			await this.#shutDown(reason);
+			this.#client = await launchClient(this.#context);
+		});
+	}
+
+	stop(reason: string): Promise<void> {
+		return this.#enqueue(() => this.#shutDown(reason));
+	}
+
+	// The client itself, once any in-flight transition has settled — the
+	// session owns *when* there is a client, not what you can do with one.
+	async ready(): Promise<LanguageClient | null> {
+		await this.#lastTransition;
+		return this.#client;
+	}
+
+	#enqueue<T>(transition: () => Promise<T>): Promise<T> {
+		const done = this.#lastTransition.then(transition, transition);
+		this.#lastTransition = done.catch(() => {});
+		return done;
+	}
+
+	async #shutDown(reason: string): Promise<void> {
+		const client = this.#client;
+		this.#client = null;
+		if (!client) return;
+
+		client.outputChannel.info(`stopping: ${reason} (${State[client.state]})`);
+		try {
+			await client.stop();
+		} catch (error) {
+			client.outputChannel.error(`Stopping the server failed: ${error}`);
+		}
+	}
+}
+
+// Assigned by `activate`. Only `deactivate` needs to reach the session from
+// module scope, and it has to `await` the shutdown — something disposing a
+// `context.subscriptions` entry can't do.
+let activeSession: ServerSession | undefined;
 
 function fileExists(filePath: string): boolean {
 	try {
@@ -69,7 +123,7 @@ function findWxOnPath(): string | undefined {
 // Resolved fresh on every start/restart (not cached) so that changing
 // `wx.path` and running "WX: Restart Language Server" picks it up without a
 // full window reload. Returns `undefined` if nothing resolvable was found,
-// so `startServer` can show a specific error instead of letting
+// so the caller can show a specific error instead of letting
 // `client.start()` fail with an opaque one.
 const resolveServerCommand = (
 	context: ExtensionContext,
@@ -90,18 +144,15 @@ const resolveServerCommand = (
 	if (configured) {
 		const resolved = path.isAbsolute(configured)
 			? configured
-			: (workspace.workspaceFolders?.[0] &&
-				path.resolve(workspace.workspaceFolders[0].uri.fsPath, configured));
+			: workspace.workspaceFolders?.[0] &&
+				path.resolve(workspace.workspaceFolders[0].uri.fsPath, configured);
 		return resolved && fileExists(resolved) ? resolved : undefined;
 	}
-
 
 	// No bundled binary (unlike the old per-platform .vsix builds) — same
 	// model as `deno.path`: resolve `wx` from the user's PATH.
 	return findWxOnPath();
 };
-
-let fileWatcher: FileSystemWatcher | null = null;
 
 // Fired with a `wx-diagnostics-view` URI whenever the diagnostic behind it
 // gets republished, so an already-open virtual doc for that URI re-fetches
@@ -112,19 +163,10 @@ let fileWatcher: FileSystemWatcher | null = null;
 // when told to via this event (a no-op if nothing has it open).
 const diagnosticsViewChanged = new EventEmitter<Uri>();
 
-// Re-parses the same raw ANSI text `wx/fullDiagnostic` returns (the content
-// provider below strips it for the document's plain text) into
-// `TextEditorDecorationType`s, so a "click for full compiler diagnostic"
-// view is colored the same way `wx-cli` colors it in a real terminal.
-const decorationProvider = new AnsiDecorationProvider(async (uri) => {
-	if (!client) return null;
-	return client.sendRequest<string>("wx/fullDiagnostic", {
-		uri: uri.fragment,
-		index: Number(uri.query),
-	});
-});
-
-async function decorateVisibleEditors(document: TextDocument) {
+async function decorateVisibleEditors(
+	decorationProvider: AnsiDecorationProvider,
+	document: TextDocument,
+) {
 	for (const editor of window.visibleTextEditors) {
 		if (editor.document === document) {
 			await decorationProvider.provideDecorations(editor);
@@ -132,23 +174,26 @@ async function decorateVisibleEditors(document: TextDocument) {
 	}
 }
 
-async function startServer(context: ExtensionContext) {
-	const serverCommand = resolveServerCommand(context);
-	if (!serverCommand) {
-		const configured = workspace.getConfiguration("wx").get<string>("path");
-		const message = configured
-			? `Could not find the 'wx' executable at the configured "wx.path": ${configured}`
-			: "Could not find the 'wx' executable on your PATH. Install it " +
+async function reportMissingExecutable() {
+	const configured = workspace.getConfiguration("wx").get<string>("path");
+	const message = configured
+		? `Could not find the 'wx' executable at the configured "wx.path": ${configured}`
+		: "Could not find the 'wx' executable on your PATH. Install it " +
 			"with `npm install -g @wx-lang/cli` (or `cargo install --path " +
 			'crates/wx-cli`), or set the "wx.path" setting to point to it directly.';
-		const action = await window.showErrorMessage(message, "Open Settings");
-		if (action === "Open Settings") {
-			commands.executeCommand(
-				"workbench.action.openSettings",
-				"wx.path",
-			);
-		}
-		return;
+	const action = await window.showErrorMessage(message, "Open Settings");
+	if (action === "Open Settings") {
+		commands.executeCommand("workbench.action.openSettings", "wx.path");
+	}
+}
+
+async function launchClient(
+	context: ExtensionContext,
+): Promise<LanguageClient | null> {
+	const serverCommand = resolveServerCommand(context);
+	if (!serverCommand) {
+		await reportMissingExecutable();
+		return null;
 	}
 
 	// No `transport` here: for an `Executable`, vscode-languageclient treats
@@ -162,17 +207,17 @@ async function startServer(context: ExtensionContext) {
 		args: ["lsp"],
 	};
 
-	fileWatcher?.dispose();
-	fileWatcher = workspace.createFileSystemWatcher("**/*.wx");
-
+	// No `synchronize.fileEvents`: the server registers its own watchers
+	// over `client/registerCapability` at startup, so the globs worth
+	// watching (`**/*.wx`, `**/wx.json`) are stated once, in the server that
+	// decides which files matter, rather than restated by each editor's
+	// client. `vscode-languageclient` honours that registration and creates
+	// the underlying `FileSystemWatcher`s itself.
 	const clientOptions: LanguageClientOptions = {
 		documentSelector: [
 			{ scheme: "file", language: "wx" },
 			{ scheme: "wx", language: "wx" },
 		],
-		synchronize: {
-			fileEvents: fileWatcher,
-		},
 		outputChannelName: "WX Language Server",
 		middleware: {
 			handleDiagnostics(uri, diagnosticList, next) {
@@ -198,7 +243,7 @@ async function startServer(context: ExtensionContext) {
 		},
 	};
 
-	client = new LanguageClient(
+	const client = new LanguageClient(
 		"wx-lsp",
 		"WX Language Server",
 		serverOptions,
@@ -211,46 +256,60 @@ async function startServer(context: ExtensionContext) {
 
 	try {
 		await client.start();
+		return client;
 	} catch (error) {
 		const action = await window.showErrorMessage(
 			`Failed to start WX Language Server: ${error}`,
 			"Open Output",
 		);
-		if (action === "Open Output") {
-			client.outputChannel.show();
-		}
+		if (action === "Open Output") client.outputChannel.show();
+		return null;
 	}
 }
 
 export function activate(context: ExtensionContext) {
+	const session = new ServerSession(context);
+	activeSession = session;
+
+	// Re-parses the same raw ANSI text `wx/fullDiagnostic` returns (the
+	// content provider below strips it for the document's plain text) into
+	// `TextEditorDecorationType`s, so a "click for full compiler
+	// diagnostic" view is colored the same way `wx-cli` colors it in a real
+	// terminal.
+	const decorationProvider = new AnsiDecorationProvider(async (uri) => {
+		const client = await session.ready();
+		if (!client) return null;
+		return client.sendRequest(protocol.fullDiagnostic, {
+			uri: uri.fragment,
+			index: Number(uri.query),
+		});
+	});
+
 	const restartCommand = commands.registerCommand(
 		"wx-vscode.restartServer",
-		async () => {
+		(reason: string = "restart command") => {
 			window.showInformationMessage("Restarting WX Language Server...");
-
-			if (client) {
-				await client.stop();
-			}
-
-			await startServer(context);
+			return session.restart(reason);
 		},
 	);
 
-	const configListener = workspace.onDidChangeConfiguration((e) => {
-		if (e.affectsConfiguration("wx")) {
-			commands.executeCommand("wx-vscode.restartServer");
-		}
+	// `wx.path` picks which binary gets spawned; nothing else under `wx`
+	// reaches the server, so nothing else is worth a restart.
+	const configListener = workspace.onDidChangeConfiguration((event) => {
+		if (!event.affectsConfiguration("wx.path")) return;
+		commands.executeCommand("wx-vscode.restartServer", "wx.path changed");
 	});
 
 	context.subscriptions.push(restartCommand, configListener);
-	startServer(context);
+	void session.restart("activation");
 
 	// Provide content for wx:// virtual stdlib URIs (e.g. wx://std/lib.wx)
 	context.subscriptions.push(
 		workspace.registerTextDocumentContentProvider("wx", {
-			provideTextDocumentContent: (uri: Uri) => {
+			provideTextDocumentContent: async (uri: Uri) => {
+				const client = await session.ready();
 				if (!client) return null;
-				return client.sendRequest("wx/virtualFileContent", {
+				return client.sendRequest(protocol.virtualFileContent, {
 					uri: uri.toString(),
 				});
 			},
@@ -267,8 +326,9 @@ export function activate(context: ExtensionContext) {
 		workspace.registerTextDocumentContentProvider(DIAGNOSTICS_VIEW_SCHEME, {
 			onDidChange: diagnosticsViewChanged.event,
 			provideTextDocumentContent: async (uri: Uri) => {
+				const client = await session.ready();
 				if (!client) return null;
-				const raw = await client.sendRequest<string>("wx/fullDiagnostic", {
+				const raw = await client.sendRequest(protocol.fullDiagnostic, {
 					uri: uri.fragment,
 					index: Number(uri.query),
 				});
@@ -287,14 +347,16 @@ export function activate(context: ExtensionContext) {
 		decorationProvider,
 		workspace.onDidChangeTextDocument((event) => {
 			if (event.document.uri.scheme !== DIAGNOSTICS_VIEW_SCHEME) return;
-			decorateVisibleEditors(event.document);
+			decorateVisibleEditors(decorationProvider, event.document);
 		}),
 		workspace.onDidOpenTextDocument((document) => {
 			if (document.uri.scheme !== DIAGNOSTICS_VIEW_SCHEME) return;
-			decorateVisibleEditors(document);
+			decorateVisibleEditors(decorationProvider, document);
 		}),
 		window.onDidChangeActiveTextEditor(async (editor) => {
-			if (editor) await decorateVisibleEditors(editor.document);
+			if (editor) {
+				await decorateVisibleEditors(decorationProvider, editor.document);
+			}
 		}),
 		window.onDidChangeVisibleTextEditors(async (editors) => {
 			for (const editor of editors) {
@@ -305,7 +367,5 @@ export function activate(context: ExtensionContext) {
 }
 
 export function deactivate() {
-	fileWatcher?.dispose();
-	if (!client) return;
-	return client.stop();
+	return activeSession?.stop("extension deactivating");
 }
