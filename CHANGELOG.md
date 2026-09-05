@@ -6,6 +6,40 @@ and compiler itself, see the [wx changelog](https://github.com/wxlanguage/wx/blo
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-09-05
+
+Use WX CLI 0.5.0 or newer for manifest-based formatting and file watching.
+The CLI is installed separately from this extension.
+
+### Added
+
+- Syntax highlighting for `match`, `crate`, and `super`.
+- Float highlighting now supports scientific notation (e.g. `1e10` and
+  `1.5e-3`) and digit separators (e.g. `1_000.5`).
+- Server shutdown logs include the reason, client state, and any errors.
+
+### Changed
+
+- **Breaking:** removed `wx.formatter.indentSize` and
+  `wx.formatter.maxWidth`. Configure formatting in your package's
+  `wx.json` using `format.indent_width`, `format.max_line_width`, and
+  `format.trailing_comma`. With WX 0.5.0, format-on-save uses the same
+  settings as `wx format`.
+- Updated keyword highlighting from `module` to `mod`.
+- File watching now follows the language server's registrations. With
+  WX 0.5.0, both `.wx` files and `wx.json` are watched, so changes to
+  project configuration and unopened source files trigger updates.
+- Automatic server restarts are now limited to changes to `wx.path`.
+
+### Fixed
+
+- Server startup, restart, and shutdown are serialized, preventing
+  overlapping operations that could forcibly terminate the server.
+- Standard-library document and full-diagnostic requests wait for pending
+  server transitions before accessing the client.
+- Diagnostic decoration providers are created per extension activation,
+  avoiding reuse of a disposed provider.
+
 ## [0.1.2] - 2026-07-20
 
 ### Fixed

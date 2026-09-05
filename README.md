@@ -22,6 +22,8 @@ npm install -g @wx-lang/cli
 
 or build it from source (see the [main README](https://github.com/wxlanguage/wx#readme)). If `wx` isn't on your `PATH`, point the extension at it directly with the `wx.path` setting.
 
+Use WX CLI 0.5.0 or newer for manifest-based formatting and file watching.
+
 ## Getting Started
 
 1. Install this extension from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=mellkam.wx-vscode).
@@ -33,8 +35,12 @@ or build it from source (see the [main README](https://github.com/wxlanguage/wx#
 | Setting | Description |
 | --- | --- |
 | `wx.path` | Path to the `wx` executable. Leave empty to resolve it from `PATH`. |
-| `wx.formatter.indentSize` | Spaces per indent level (default `2`). |
-| `wx.formatter.maxWidth` | Max line width for formatting (default `80`). |
+
+Formatting is configured in your package's `wx.json` using
+`format.indent_width`, `format.max_line_width`, and `format.trailing_comma`.
+Format-on-save uses the same settings as `wx format`. The former
+`wx.formatter.indentSize` and `wx.formatter.maxWidth` settings were removed
+in extension version 0.2.0.
 
 ## Commands
 
