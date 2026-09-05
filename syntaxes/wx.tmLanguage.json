@@ -25,15 +25,15 @@
 			"patterns": [
 				{
 					"name": "storage.type.wx",
-					"match": "\\b(fn|struct|trait|impl|enum|type|typeset|memory|local|global|const|module|pub|mut|use|where)\\b"
+					"match": "\\b(fn|struct|trait|impl|enum|type|typeset|memory|local|global|const|mod|pub|mut|use|where)\\b"
 				},
 				{
 					"name": "keyword.control.wx",
-					"match": "\\b(if|else|loop|break|continue|return|for|unreachable)\\b"
+					"match": "\\b(if|else|loop|break|continue|return|for|unreachable|match)\\b"
 				},
 				{
 					"name": "keyword.other.wx",
-					"match": "\\b(import|export|as|self|Self)\\b"
+					"match": "\\b(import|export|as|self|Self|crate|super)\\b"
 				},
 				{
 					"name": "constant.language.wx",
