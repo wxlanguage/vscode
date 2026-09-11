@@ -1,0 +1,68 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"title": "wx.json",
+	"description": "Manifest for a wx package. Every wx compilation is rooted at a directory containing one of these.",
+	"type": "object",
+	"required": ["type", "entry"],
+	"properties": {
+		"type": {
+			"description": "What kind of package this is.\n\n- \"bin\": a binary package with an `export { .. }` block; compiles to a standalone .wasm module.\n- \"lib\": a library package, depended on by other packages.\n- \"std\": this package provides the standard library itself (the operator traits, `Memory`, etc). Only wx's own std package should use this — it means the embedded stdlib is not also loaded, not that no stdlib is used.",
+			"type": "string",
+			"enum": ["bin", "lib", "std"]
+		},
+		"entry": {
+			"description": "Path to the entry source file, relative to this manifest's own directory. Never guessed from a conventional filename.",
+			"type": "string",
+			"minLength": 1
+		},
+		"dependencies": {
+			"description": "Other local packages this package depends on, keyed by the name this package will know them as.",
+			"type": "object",
+			"propertyNames": {
+				"description": "Must be a snake_case wx identifier and not a reserved keyword (e.g. not `loop`, `fn`, `if`, ...).",
+				"pattern": "^[a-z_][a-z0-9_]*$",
+				"not": {
+					"enum": ["std"]
+				}
+			},
+			"additionalProperties": {
+				"description": "A single dependency entry.",
+				"type": "object",
+				"required": ["type", "path"],
+				"properties": {
+					"type": {
+						"description": "The dependency's source kind. Only \"local\" exists today.",
+						"type": "string",
+						"enum": ["local"]
+					},
+					"path": {
+						"description": "Path to the dependency package's directory, relative to this manifest's own directory.",
+						"type": "string",
+						"minLength": 1
+					}
+				}
+			}
+		},
+		"format": {
+			"description": "Formatter configuration for `wx format`. Every field is optional and falls back to the formatter's default when omitted.",
+			"type": "object",
+			"properties": {
+				"max_line_width": {
+					"description": "Maximum line width the formatter will try to fit code within.",
+					"type": "integer",
+					"minimum": 1
+				},
+				"indent_width": {
+					"description": "Number of spaces per indentation level.",
+					"type": "integer",
+					"minimum": 0,
+					"maximum": 255
+				},
+				"trailing_comma": {
+					"description": "Whether to emit a trailing comma in multi-line comma-separated lists.",
+					"type": "boolean"
+				}
+			}
+		}
+	}
+}

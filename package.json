@@ -51,6 +51,12 @@
 				"editor.formatOnSave": true
 			}
 		},
+		"jsonValidation": [
+			{
+				"fileMatch": "wx.json",
+				"url": "./schemas/wx.schema.json"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "WX Language Configuration",
