@@ -3,12 +3,12 @@
 	"title": "wx.json",
 	"description": "Manifest for a wx package. Every wx compilation is rooted at a directory containing one of these.",
 	"type": "object",
-	"required": ["type", "entry"],
+	"required": ["entry"],
 	"properties": {
 		"type": {
-			"description": "What kind of package this is.\n\n- \"bin\": a binary package with an `export { .. }` block; compiles to a standalone .wasm module.\n- \"lib\": a library package, depended on by other packages.\n- \"std\": this package provides the standard library itself (the operator traits, `Memory`, etc). Only wx's own std package should use this — it means the embedded stdlib is not also loaded, not that no stdlib is used.",
+			"description": "Only the package providing the language primitives, operator traits and intrinsics sets \"type\": \"core\". Ordinary packages omit this field. Every package can be imported or compiled to WebAssembly, with or without exports.",
 			"type": "string",
-			"enum": ["bin", "lib", "std"]
+			"enum": ["core"]
 		},
 		"entry": {
 			"description": "Path to the entry source file, relative to this manifest's own directory. Never guessed from a conventional filename.",
@@ -16,15 +16,8 @@
 			"minLength": 1
 		},
 		"dependencies": {
-			"description": "Other local packages this package depends on, keyed by the name this package will know them as.",
+			"description": "Other local packages this package depends on, keyed by arbitrary strings selected by package declarations (for example, package \"my-library\" as math;). Only the source alias must be a valid identifier.",
 			"type": "object",
-			"propertyNames": {
-				"description": "Must be a snake_case wx identifier and not a reserved keyword (e.g. not `loop`, `fn`, `if`, ...).",
-				"pattern": "^[a-z_][a-z0-9_]*$",
-				"not": {
-					"enum": ["std"]
-				}
-			},
 			"additionalProperties": {
 				"description": "A single dependency entry.",
 				"type": "object",
@@ -50,17 +43,16 @@
 				"max_line_width": {
 					"description": "Maximum line width the formatter will try to fit code within.",
 					"type": "integer",
-					"minimum": 1
+					"minimum": 0,
+					"maximum": 4294967295,
+					"default": 80
 				},
 				"indent_width": {
 					"description": "Number of spaces per indentation level.",
 					"type": "integer",
 					"minimum": 0,
-					"maximum": 255
-				},
-				"trailing_comma": {
-					"description": "Whether to emit a trailing comma in multi-line comma-separated lists.",
-					"type": "boolean"
+					"maximum": 255,
+					"default": 4
 				}
 			}
 		}

@@ -303,7 +303,7 @@ export function activate(context: ExtensionContext) {
 	context.subscriptions.push(restartCommand, configListener);
 	void session.restart("activation");
 
-	// Provide content for wx:// virtual stdlib URIs (e.g. wx://std/lib.wx)
+	// Provide content for wx:// virtual core URIs (e.g. wx://core/lib.wx)
 	context.subscriptions.push(
 		workspace.registerTextDocumentContentProvider("wx", {
 			provideTextDocumentContent: async (uri: Uri) => {
