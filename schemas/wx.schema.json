@@ -53,6 +53,12 @@
 					"minimum": 0,
 					"maximum": 255,
 					"default": 4
+				},
+				"line_ending": {
+					"description": "Line break the formatter prints.",
+					"type": "string",
+					"enum": ["lf", "crlf"],
+					"default": "lf"
 				}
 			}
 		}

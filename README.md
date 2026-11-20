@@ -37,7 +37,8 @@ Use WX CLI 0.5.0 or newer for manifest-based formatting and file watching.
 | `wx.path` | Path to the `wx` executable. Leave empty to resolve it from `PATH`. |
 
 Formatting is configured in your package's `wx.json` using
-`format.indent_width`, `format.max_line_width`, and `format.trailing_comma`.
+`format.indent_width`, `format.max_line_width`, and `format.line_ending`
+(`"lf"` or `"crlf"`).
 Format-on-save uses the same settings as `wx format`. The former
 `wx.formatter.indentSize` and `wx.formatter.maxWidth` settings were removed
 in extension version 0.2.0.
