@@ -61,6 +61,33 @@
 					"default": "lf"
 				}
 			}
+		},
+		"lint": {
+			"description": "Lint levels for `wx check`, `wx build` and the language server, keyed by lint name. A lint that is not named keeps its default level. An unknown lint name or level makes the section invalid.",
+			"type": "object",
+			"additionalProperties": false,
+			"properties": {
+				"unused_variable": {
+					"description": "L3000: a local or parameter that is never read. Assigning is not a read; drop a value on purpose with `_ = x;`.",
+					"$ref": "#/definitions/lintLevel"
+				},
+				"unnecessary_mutability": {
+					"description": "L3001: `mut` on a local that is never assigned.",
+					"$ref": "#/definitions/lintLevel"
+				},
+				"unused_label": {
+					"description": "L3002: a loop or block label that no `break` or `continue` names.",
+					"$ref": "#/definitions/lintLevel"
+				}
+			}
+		}
+	},
+	"definitions": {
+		"lintLevel": {
+			"description": "What the lint reports as: nothing, a warning, or an error that fails the build.",
+			"type": "string",
+			"enum": ["off", "warn", "error"],
+			"default": "warn"
 		}
 	}
 }
