@@ -22,7 +22,7 @@ npm install -g @wx-lang/cli
 
 or build it from source (see the [main README](https://github.com/wxlanguage/wx#readme)). If `wx` isn't on your `PATH`, point the extension at it directly with the `wx.path` setting.
 
-Use WX CLI 0.5.0 or newer for manifest-based formatting and file watching.
+Use WX CLI 0.10.0 or newer, matching the syntax this extension highlights.
 
 ## Getting Started
 

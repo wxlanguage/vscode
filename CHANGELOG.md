@@ -6,6 +6,29 @@ and compiler itself, see the [wx changelog](https://github.com/wxlanguage/wx/blo
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-11-22
+
+Highlighting now follows the WX 0.10.0 syntax. Use WX CLI 0.10.0 or newer;
+code written for 0.5.0 is highlighted only partly.
+
+### Added
+
+- Completion and validation for `wx.json`, with no language server
+  needed: `entry`, `dependencies`, the `format` section (including
+  `line_ending`), and the `lint` section, where each lint takes `off`,
+  `warn`, or `error`.
+- Syntax highlighting for `func`, `package`, and `block`, the `True` and
+  `False` constants, the `funcref`, `Bool`, and `Char` types, labels such as
+  `loop :outer`, pointer sigils such as `heap::*T` and `.&`, attributes, and
+  `///` doc comments.
+- Calls with type arguments, such as `transmute::<u8, i32>(x)`, are
+  highlighted as calls.
+
+### Removed
+
+- Highlighting for syntax that WX 0.10.0 removed: `fn`, `crate`, `true`,
+  `false`, `unreachable`, `*mut`, and the `bool`, `char`, and `never` types.
+
 ## [0.2.0] - 2026-09-05
 
 Use WX CLI 0.5.0 or newer for manifest-based formatting and file watching.
