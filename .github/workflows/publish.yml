@@ -47,6 +47,11 @@ jobs:
     needs: build-and-package
     if: github.event_name == 'release'
     runs-on: ubuntu-latest
+    # Trusted publishing: vsce exchanges this job's GitHub OIDC token for a
+    # Marketplace credential, under the publisher's policy for publish.yml.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Download VSIX artifact
         uses: actions/download-artifact@v8
@@ -60,6 +65,4 @@ jobs:
           node-version: "24"
 
       - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --packagePath artifacts/*.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx @vscode/vsce@4.1.1 publish --oidc --packagePath artifacts/*.vsix
