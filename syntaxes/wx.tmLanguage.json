@@ -3,6 +3,8 @@
 	"name": "WX",
 	"patterns": [
 		{ "include": "#comments" },
+		{ "include": "#attributes" },
+		{ "include": "#labels" },
 		{ "include": "#keywords" },
 		{ "include": "#types" },
 		{ "include": "#pointers" },
@@ -16,8 +18,40 @@
 		"comments": {
 			"patterns": [
 				{
+					"name": "comment.line.documentation.wx",
+					"match": "///.*$"
+				},
+				{
 					"name": "comment.line.double-slash.wx",
 					"match": "//.*$"
+				}
+			]
+		},
+		"attributes": {
+			"patterns": [
+				{
+					"name": "meta.attribute.wx",
+					"begin": "#\\[",
+					"end": "\\]",
+					"patterns": [
+						{ "include": "#strings" },
+						{ "include": "#numbers" }
+					]
+				}
+			]
+		},
+		"labels": {
+			"patterns": [
+				{
+					"match": "\\b(loop|block|break|continue)\\s+(:[a-zA-Z_]\\w*)",
+					"captures": {
+						"1": {
+							"name": "keyword.control.wx"
+						},
+						"2": {
+							"name": "entity.name.label.wx"
+						}
+					}
 				}
 			]
 		},
@@ -25,27 +59,27 @@
 			"patterns": [
 				{
 					"name": "storage.type.wx",
-					"match": "\\b(fn|struct|trait|impl|enum|type|typeset|memory|local|global|const|mod|pub|mut|use|where)\\b"
+					"match": "\\b(func|struct|trait|impl|enum|type|typeset|memory|local|global|const|mod|package|pub|mut|use|where)\\b"
 				},
 				{
 					"name": "keyword.control.wx",
-					"match": "\\b(if|else|loop|break|continue|return|for|unreachable|match)\\b"
+					"match": "\\b(if|else|loop|block|break|continue|return|for|match)\\b"
 				},
 				{
 					"name": "keyword.other.wx",
-					"match": "\\b(import|export|as|self|Self|crate|super)\\b"
+					"match": "\\b(import|export|as|self|Self|super)\\b"
 				},
 				{
 					"name": "constant.language.wx",
-					"match": "\\b(true|false)\\b"
+					"match": "\\b(True|False)\\b"
 				}
 			]
 		},
 		"types": {
 			"patterns": [
 				{
-					"name": "entity.name.namespace.wx",
-					"match": "\\b(i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|bool|char|never)\\b"
+					"name": "entity.name.type.primitive.wx",
+					"match": "\\b(i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|funcref|Bool|Char)\\b"
 				}
 			]
 		},
@@ -53,7 +87,7 @@
 			"patterns": [
 				{
 					"name": "storage.modifier.wx",
-					"match": "\\*mut\\b"
+					"match": "(?<=::)[*&]|\\.[*&]"
 				}
 			]
 		},
@@ -104,7 +138,7 @@
 			"patterns": [
 				{
 					"name": "entity.name.function.wx",
-					"match": "\\b([a-zA-Z_]\\w*)\\s*(?=\\()"
+					"match": "\\b([a-zA-Z_]\\w*)\\s*(?=(::<[^()]*>)?\\()"
 				}
 			]
 		},
